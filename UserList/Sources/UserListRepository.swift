@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - UserListRepository
+
 struct UserListRepository {
 
     private let executeDataRequest: (URLRequest) async throws -> (Data, URLResponse)

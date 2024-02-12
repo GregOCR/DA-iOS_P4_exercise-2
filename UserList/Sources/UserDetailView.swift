@@ -24,7 +24,6 @@ struct UserDetailView: View {
                     .font(.subheadline)
             }
             .padding()
-            
             Spacer()
         }
         .navigationTitle("\(user.name.first) \(user.name.last)")

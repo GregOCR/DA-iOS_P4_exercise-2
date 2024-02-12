@@ -1,157 +1,163 @@
 import SwiftUI
 
 struct UserListView: View {
-    // TODO: - Those properties should be viewModel's OutPuts
-    @State private var users: [User] = []
-    @State private var isLoading = false
-    @State private var isGridView = false
-
-    // TODO: - The property should be declared in the viewModel
-    private let repository = UserListRepository()
     
+    @StateObject var viewModel = UserViewModel()
+        
     var body: some View {
         NavigationView {
-            if !isGridView {
-                List(users) { user in
-                    NavigationLink(destination: UserDetailView(user: user)) {
-                        HStack {
-                            AsyncImage(url: URL(string: user.picture.thumbnail)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 50, height: 50)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                ProgressView()
-                                    .frame(width: 50, height: 50)
-                                    .clipShape(Circle())
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text("\(user.name.first) \(user.name.last)")
-                                    .font(.headline)
-                                Text("\(user.dob.date)")
-                                    .font(.subheadline)
-                            }
-                        }
-                    }
-                    .onAppear {
-                        if self.shouldLoadMoreData(currentItem: user) {
-                            self.fetchUsers()
-                        }
-                    }
-                }
-                .navigationTitle("Users")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Picker(selection: $isGridView, label: Text("Display")) {
-                            Image(systemName: "rectangle.grid.1x2.fill")
-                                .tag(true)
-                                .accessibilityLabel(Text("Grid view"))
-                            Image(systemName: "list.bullet")
-                                .tag(false)
-                                .accessibilityLabel(Text("List view"))
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            self.reloadUsers()
-                        }) {
-                            Image(systemName: "arrow.clockwise")
-                                .imageScale(.large)
-                        }
-                    }
-                }
+            if !viewModel.isGridView {
+                ListUserView(viewModel: viewModel)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))]) {
-                        ForEach(users) { user in
-                            NavigationLink(destination: UserDetailView(user: user)) {
-                                VStack {
-                                    AsyncImage(url: URL(string: user.picture.medium)) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 150, height: 150)
-                                            .clipShape(Circle())
-                                    } placeholder: {
-                                        ProgressView()
-                                            .frame(width: 150, height: 150)
-                                            .clipShape(Circle())
-                                    }
-                                    
-                                    Text("\(user.name.first) \(user.name.last)")
-                                        .font(.headline)
-                                        .multilineTextAlignment(.center)
-                                }
-                            }
-                            .onAppear {
-                                if self.shouldLoadMoreData(currentItem: user) {
-                                    self.fetchUsers()
-                                }
-                            }
-                        }
-                    }
-                }
-                .navigationTitle("Users")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Picker(selection: $isGridView, label: Text("Display")) {
-                            Image(systemName: "rectangle.grid.1x2.fill")
-                                .tag(true)
-                                .accessibilityLabel(Text("Grid view"))
-                            Image(systemName: "list.bullet")
-                                .tag(false)
-                                .accessibilityLabel(Text("List view"))
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            self.reloadUsers()
-                        }) {
-                            Image(systemName: "arrow.clockwise")
-                                .imageScale(.large)
-                        }
-                    }
-                }
+                ScrollUserView(viewModel: viewModel)
             }
         }
         .onAppear {
-            self.fetchUsers()
+            viewModel.fetchUsers()
         }
     }
+}
 
-    // TODO: - Should be a viewModel's input
-    private func fetchUsers() {
-        isLoading = true
-        Task {
-            do {
-                let users = try await repository.fetchUsers(quantity: 20)
-                self.users.append(contentsOf: users)
-                isLoading = false
-            } catch {
-                print("Error fetching users: \(error.localizedDescription)")
+struct ScrollUserView: View {
+    
+    @ObservedObject var viewModel: UserViewModel
+    
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))]) {
+                ForEach(viewModel.users) { user in
+                    NavigationLinkView(user: user, content: {
+                        VStack {
+                            ImageSyncView(user: user)
+                            UserNameView(user: user)
+                                .multilineTextAlignment(.center)
+                        }
+                    }, viewModel: viewModel)
+                }
+            }
+        }
+        .navigationTitle("Users")
+        .usersToolbar(isGridView: $viewModel.isGridView,
+                      reloadAction: viewModel.reloadUsers)
+    }
+}
+
+struct ListUserView: View {
+    
+    @ObservedObject var viewModel: UserViewModel
+
+    var body: some View {
+        List(viewModel.users) { user in
+            NavigationLinkView(user: user, content: {
+                HStack {
+                    ImageSyncView(user: user)
+                    VStack(alignment: .leading) {
+                        UserNameView(user: user)
+                        UserDobView(user: user)
+                    }
+                }
+            }, viewModel: viewModel)
+        }
+        .navigationTitle("Users")
+        .usersToolbar(isGridView: $viewModel.isGridView,
+                      reloadAction: viewModel.reloadUsers)
+    }
+}
+
+struct UserNameView: View {
+    
+    var user: User
+    
+    var body: some View {
+        Text("\(user.name.first) \(user.name.last)")
+            .font(.headline)
+    }
+}
+
+struct UserDobView: View {
+    
+    var user: User
+    
+    var body: some View {
+        Text("\(user.dob.date)")
+            .font(.subheadline)
+    }
+}
+
+struct ImageSyncView: View {
+    
+    var user: User
+    
+    var body: some View {
+        AsyncImage(url: URL(string: user.picture.thumbnail)) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+        } placeholder: {
+            ProgressView()
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+        }
+    }
+}
+
+struct ToolBarPickerView: View {
+    
+    @Binding var pickerSelection: Bool // Changez @State à @Binding
+
+    var body: some View {
+        Picker(selection: $pickerSelection, label: Text("Display")) {
+            Image(systemName: "rectangle.grid.1x2.fill")
+                .tag(true)
+                .accessibilityLabel(Text("Grid view"))
+            Image(systemName: "list.bullet")
+                .tag(false)
+                .accessibilityLabel(Text("List view"))
+        }
+        .pickerStyle(SegmentedPickerStyle())
+    }
+}
+
+struct NavigationLinkView<Content: View>: View {
+    
+    let user: User
+    let content: () -> Content
+    
+    @State var viewModel: UserViewModel
+    
+    var body: some View {
+        NavigationLink(destination: UserDetailView(user: user)) {
+            content()
+        }
+        .onAppear {
+            if viewModel.shouldLoadMoreData(currentItem: user) {
+                viewModel.fetchUsers()
             }
         }
     }
+}
 
-    // TODO: - Should be an OutPut
-    private func shouldLoadMoreData(currentItem item: User) -> Bool {
-        guard let lastItem = users.last else { return false }
-        return !isLoading && item.id == lastItem.id
-    }
-
-    // TODO: - Should be a viewModel's input
-    private func reloadUsers() {
-        users.removeAll()
-        fetchUsers()
+extension View {
+    func usersToolbar(isGridView: Binding<Bool>,
+                      reloadAction: @escaping () -> Void) -> some View {
+        self.toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                ToolBarPickerView(pickerSelection: isGridView)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: reloadAction) {
+                    Image(systemName: "arrow.clockwise")
+                        .imageScale(.large)
+                }
+            }
+        }
     }
 }
 
 struct UserListView_Previews: PreviewProvider {
     static var previews: some View {
-        UserListView()
+        UserListView(viewModel: UserViewModel())
     }
 }
