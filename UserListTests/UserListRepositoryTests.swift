@@ -5,8 +5,8 @@ final class UserListRepositoryTests: XCTestCase {
     // Happy path test case
     func testFetchUsersSuccess() async throws {
         // Given
-        let repository = UserListRepository(executeDataRequest: mockExecuteDataRequest)
         let quantity = 2
+        let repository = UserListRepository(executeDataRequest: mockExecuteDataRequest)
         
         // When
         let users = try await repository.fetchUsers(quantity: quantity)
@@ -34,7 +34,7 @@ final class UserListRepositoryTests: XCTestCase {
             httpVersion: nil,
             headerFields: nil
         )!
-
+        
         let mockExecuteDataRequest: (URLRequest) async throws -> (Data, URLResponse) = { _ in
             return (invalidJSONData, invalidJSONResponse)
         }
@@ -49,6 +49,25 @@ final class UserListRepositoryTests: XCTestCase {
             // Then
             XCTAssertTrue(error is DecodingError)
         }
+    }
+ 
+    func testUserDetailViewDisplaysCorrectData() {
+        
+        let user = User(user: UserListResponse.User(name: Name(title: "Mrs", first: "Jane", last: "Doe"),
+                                                    dob: Dob(date: "1990-01-01", age: 20),
+                                                    picture: Picture(large: "http://example.com/large.jpg",
+                                                                     medium: "",
+                                                                     thumbnail: ""))
+        )
+        
+        let userDetailView = UserDetailView(user: user)
+        
+        XCTAssertEqual(userDetailView.user.name.first + " " + userDetailView.user.name.last,
+                       "Jane Doe")
+        XCTAssertEqual(userDetailView.user.dob.date,
+                       "1990-01-01")
+        XCTAssertEqual(userDetailView.user.picture.large,
+                       "http://example.com/large.jpg")
     }
 }
 

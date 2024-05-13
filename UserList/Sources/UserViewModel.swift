@@ -10,40 +10,37 @@ import SwiftUI
 final class UserViewModel: ObservableObject {
     
     // MARK: - PROPERTIES
-
     @Published var users: [User] = []
     @Published var isLoading = false
     @Published var isGridView = false
 
-    private let repository = UserListRepository()
-
-    // MARK: - Inputs
+    private let repository: UserListRepository
     
-    func fetchUsers() {
-        isLoading = true
-        Task {
-            do {
-                let fetchedUsers = try await repository.fetchUsers(quantity: 20)
-                DispatchQueue.main.async {
-                    self.users.append(contentsOf: fetchedUsers)
-                    self.isLoading = false
-                }
-            } catch {
-                print("Error fetching users: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
-            }
-        }
+    init(repository: UserListRepository = UserListRepository()) {
+        self.repository = repository
     }
 
-    func reloadUsers() {
+    // MARK: - Inputs
+    @MainActor
+    func fetchUsers() async {
+        isLoading = true
+        do {
+            let fetchedUsers = try await repository.fetchUsers(quantity: 20)
+                self.users.append(contentsOf: fetchedUsers)
+            
+        } catch {
+            print("Error fetching users: \(error.localizedDescription)")
+        }
+        self.isLoading = false
+    }
+    
+    @MainActor
+    func reloadUsers() async {
         users.removeAll()
-        fetchUsers()
+        await fetchUsers()
     }
 
     // MARK: - Outputs
-    
     func shouldLoadMoreData(currentItem item: User) -> Bool {
         guard let lastItem = users.last else { return false }
         return !isLoading && item.id == lastItem.id

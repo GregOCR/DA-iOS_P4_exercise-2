@@ -3,7 +3,7 @@ import SwiftUI
 struct UserListView: View {
     
     @StateObject var viewModel = UserViewModel()
-        
+    
     var body: some View {
         NavigationView {
             if !viewModel.isGridView {
@@ -13,7 +13,9 @@ struct UserListView: View {
             }
         }
         .onAppear {
-            viewModel.fetchUsers()
+            Task {
+                await viewModel.fetchUsers()
+            }
         }
     }
 }
@@ -26,7 +28,7 @@ struct ScrollUserView: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))]) {
                 ForEach(viewModel.users) { user in
-                    NavigationLinkView(user: user, content: {
+                    NavigationLinkView(user: user,content: {
                         VStack {
                             ImageSyncView(user: user)
                             UserNameView(user: user)
@@ -38,14 +40,18 @@ struct ScrollUserView: View {
         }
         .navigationTitle("Users")
         .usersToolbar(isGridView: $viewModel.isGridView,
-                      reloadAction: viewModel.reloadUsers)
+                      reloadAction: {
+            Task {
+                await viewModel.reloadUsers()
+            }
+        })
     }
 }
 
 struct ListUserView: View {
     
     @ObservedObject var viewModel: UserViewModel
-
+    
     var body: some View {
         List(viewModel.users) { user in
             NavigationLinkView(user: user, content: {
@@ -60,7 +66,11 @@ struct ListUserView: View {
         }
         .navigationTitle("Users")
         .usersToolbar(isGridView: $viewModel.isGridView,
-                      reloadAction: viewModel.reloadUsers)
+                      reloadAction: {
+            Task {
+                await viewModel.reloadUsers()
+            }
+        })
     }
 }
 
@@ -105,8 +115,8 @@ struct ImageSyncView: View {
 
 struct ToolBarPickerView: View {
     
-    @Binding var pickerSelection: Bool // Changez @State à @Binding
-
+    @Binding var pickerSelection: Bool
+    
     var body: some View {
         Picker(selection: $pickerSelection, label: Text("Display")) {
             Image(systemName: "rectangle.grid.1x2.fill")
@@ -125,15 +135,17 @@ struct NavigationLinkView<Content: View>: View {
     let user: User
     let content: () -> Content
     
-    @State var viewModel: UserViewModel
-    
+    @ObservedObject var viewModel: UserViewModel
+
     var body: some View {
         NavigationLink(destination: UserDetailView(user: user)) {
             content()
         }
         .onAppear {
             if viewModel.shouldLoadMoreData(currentItem: user) {
-                viewModel.fetchUsers()
+                Task {
+                    await viewModel.fetchUsers()
+                }
             }
         }
     }

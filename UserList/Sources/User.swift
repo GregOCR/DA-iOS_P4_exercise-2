@@ -7,6 +7,7 @@ struct User: Codable, Identifiable {
     let dob: Dob
     let picture: Picture
     
+    // MARK: - User init
     init(user: UserListResponse.User) {
         self.name = .init(title: user.name.title, first: user.name.first, last: user.name.last)
         self.dob = .init(date: user.dob.date, age: user.dob.age)
